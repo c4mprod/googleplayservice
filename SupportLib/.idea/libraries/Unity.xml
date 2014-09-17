@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Unity">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/BaseGameUtils/libs/Unity.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
