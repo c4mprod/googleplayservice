@@ -20,16 +20,12 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
-import android.widget.Toast;
-import com.unity3d.player.UnityPlayer;
 import com.google.android.gms.appstate.AppStateManager;
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
@@ -48,10 +44,14 @@ import com.google.android.gms.games.request.GameRequest;
 import com.google.android.gms.games.request.GameRequestBuffer;
 import com.google.android.gms.games.request.Requests;
 import com.google.android.gms.plus.Plus;
+import com.unity3d.player.UnityPlayer;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Hashtable;
 
 
 public class GameHelper implements GoogleApiClient.ConnectionCallbacks,
@@ -1016,19 +1016,92 @@ public class GameHelper implements GoogleApiClient.ConnectionCallbacks,
         mActivity.startActivity(target);
     }
 
-    public void getManualInBox() {
-        Intent target = new Intent(mAppContext, GiftResultActivity.class);
+    public void updateGiftInbox() {
+        /*Intent target = new Intent(mAppContext, GiftResultActivity.class);
         target.putExtra(PARAM_TYPE, GiftResultActivity.MANUAL_SHOW_INBOX);
-        mActivity.startActivity(target);
+        mActivity.startActivity(target);*/
+
+        updateRequestCounts();
     }
 
-    public void acceptRequest(int type, int position) {
+    public void acceptGiftRequest(int type, int position) {
         Intent target = new Intent(mAppContext, GiftResultActivity.class);
         target.putExtra(PARAM_TYPE, GiftResultActivity.ACCEPT_REQUEST);
         target.putExtra(PARAM_REQUEST_POSITION, position);
         target.putExtra(PARAM_REQUEST_TYPE,type);
         mActivity.startActivity(target);
     }
+    // Changes the numbers at the top of the layout
+    private void updateRequestCounts() {
+
+        GameHelper.mInstance.debugLog("ResultCallback updateRequestCounts");
+        PendingResult<Requests.LoadRequestsResult> result = Games.Requests.loadRequests(GameHelper.mInstance.getApiClient(),
+                Requests.REQUEST_DIRECTION_INBOUND,
+                GameRequest.TYPE_ALL,
+                Requests.SORT_ORDER_EXPIRING_SOON_FIRST);
+        result.setResultCallback(mLoadRequestsCallback);
+    }
+
+
+    // Called back after you load the current requests
+    private final ResultCallback<Requests.LoadRequestsResult> mLoadRequestsCallback = new ResultCallback<Requests.LoadRequestsResult>() {
+        @Override
+        public void onResult(Requests.LoadRequestsResult result) {
+            GameHelper.mInstance.bufGift = result.getRequests(GameRequest.TYPE_GIFT);
+            GameHelper.mInstance.bufWish = result.getRequests(GameRequest.TYPE_WISH);
+            GameHelper.mInstance.debugLog("ResultCallback MANUAL_SHOW_INBOX");
+            Hashtable inBox = new Hashtable();
+            ArrayList<Hashtable> listGift = new ArrayList<Hashtable>();
+            for(int i=0; i< GameHelper.mInstance.bufGift .getCount(); i++)
+            {
+                Hashtable giftDic = new Hashtable();
+                GameRequest gift = GameHelper.mInstance.bufGift .get(i);
+                byte[] lByte = gift.getData();
+                String lPayload = new String(lByte);
+                giftDic.put("payload", lPayload);
+                giftDic.put("creation", gift.getCreationTimestamp());
+                giftDic.put("expiration", gift.getExpirationTimestamp());
+                giftDic.put("user", gift.getSender().getDisplayName());
+
+                listGift.add(giftDic);
+            }
+            inBox.put(1,listGift);
+
+            ArrayList<Hashtable> listWish = new ArrayList<Hashtable>();
+            for(int i=0; i< GameHelper.mInstance.bufWish.getCount(); i++)
+            {
+                Hashtable wishDic = new Hashtable();
+                GameRequest wish = GameHelper.mInstance.bufWish.get(i);
+                byte[] lByte = wish.getData();
+                String lPayload = new String(lByte);
+                wishDic.put("payload", lPayload);
+                wishDic.put("creation", wish.getCreationTimestamp());
+                wishDic.put("expiration", wish.getExpirationTimestamp());
+                wishDic.put("user", wish.getSender().getDisplayName());
+
+                listWish.add(wishDic);
+            }
+            inBox.put(2,listWish);
+
+            JSONObject json = new JSONObject();
+            try {
+                json.put("Gift", inBox);
+                GameHelper.mInstance.debugLog("ResultCallback json OK");
+            } catch (JSONException e) {
+                GameHelper.mInstance.debugLog("ResultCallback json NOK");
+                e.printStackTrace();
+            }
+            try {
+                UnityPlayer.UnitySendMessage("GiftListener", "GiftListUpdated", json.toString(2));
+                GameHelper.mInstance.debugLog("ResultCallback "+  json.toString(2));
+            } catch (JSONException e) {
+                UnityPlayer.UnitySendMessage("GiftListener","GiftListUpdated", "");
+                GameHelper.mInstance.debugLog("ResultCallback failed");
+                e.printStackTrace();
+            }
+        }
+    };
+
 
     public String getToken() {
 

@@ -12,11 +12,16 @@ import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.games.Games;
 import com.google.android.gms.games.request.GameRequest;
+import com.google.android.gms.games.request.GameRequestBuffer;
 import com.google.android.gms.games.request.Requests;
 import com.unity3d.player.UnityPlayer;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 
 /**
  * Created by xtra on 11/09/2014.
@@ -69,11 +74,12 @@ public class GiftResultActivity extends Activity {
         else if(type == SHOW_INBOX)
         {
             startActivityForResult(Games.Requests.getInboxIntent(GameHelper.mInstance.getApiClient()), SHOW_INBOX);
-        }
+        }/*
         else if(type == MANUAL_SHOW_INBOX)
         {
+            GameHelper.mInstance.debugLog("MANUAL_SHOW_INBOX");
             updateRequestCounts();
-        }
+        }*/
         else if(type == ACCEPT_REQUEST)
         {
             int typeRequest = extras.getInt(GameHelper.PARAM_REQUEST_TYPE);
@@ -184,24 +190,4 @@ public class GiftResultActivity extends Activity {
                 });
 
     }
-
-    // Changes the numbers at the top of the layout
-    private void updateRequestCounts() {
-        PendingResult<Requests.LoadRequestsResult> result = Games.Requests
-                .loadRequests(GameHelper.mInstance.getApiClient(),
-                        Requests.REQUEST_DIRECTION_INBOUND,
-                        GameRequest.TYPE_ALL,
-                        Requests.SORT_ORDER_EXPIRING_SOON_FIRST);
-        result.setResultCallback(mLoadRequestsCallback);
-    }
-
-    // Called back after you load the current requests
-    private final ResultCallback<Requests.LoadRequestsResult> mLoadRequestsCallback = new ResultCallback<Requests.LoadRequestsResult>() {
-        @Override
-        public void onResult(Requests.LoadRequestsResult result) {
-            GameHelper.mInstance.bufGift = result.getRequests(GameRequest.TYPE_GIFT);
-            GameHelper.mInstance.bufWish = result.getRequests(GameRequest.TYPE_WISH);
-            UnityPlayer.UnitySendMessage("GiftListener","GiftListUpdated", "");
-        }
-    };
 }
